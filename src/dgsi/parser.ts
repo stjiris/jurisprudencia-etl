@@ -1,12 +1,10 @@
 import { calculateUUID, HASHField, JurisprudenciaDocument, JurisprudenciaDocumentDateKey, JurisprudenciaDocumentGenericKey, JurisprudenciaDocumentKey, JurisprudenciaDocumentKeys, JurisprudenciaVersion, PartialJurisprudenciaDocument, isJurisprudenciaDocumentContentKey, isJurisprudenciaDocumentDateKey, isJurisprudenciaDocumentExactKey, isJurisprudenciaDocumentGenericKey, isJurisprudenciaDocumentHashKey, isJurisprudenciaDocumentObjectKey, isJurisprudenciaDocumentStateKey, isJurisprudenciaDocumentTextKey, JurisprudenciaDocumentProperties, JurisprudenciaDocumentExactKey, calculateHASH } from "@stjiris/jurisprudencia-document";
-import { JSDOM } from "jsdom";
-import { client } from "./client";
-import { createHash } from "crypto";
-import { DescritorOficial } from "./descritor-oficial";
+import { client } from "../client";
+import { DescritorOficial } from "../utils/descritores";
 import { IndexResponse, UpdateResponse, WriteResponseBase } from "@elastic/elasticsearch/lib/api/types";
-import { conflicts } from "./report";
-import { JSDOMfromURL } from "./jsdom-util";
-import { DGSI_LINK_PATT } from "./dgsi-links";
+import { conflicts } from "../communication/report";
+import { DGSI_LINK_PATT } from "./crawler";
+import { JSDOMfromURL } from "../utils/aux"
 
 export async function jurisprudenciaOriginalFromURL(url: string) {
     if (url.match(DGSI_LINK_PATT)) {

@@ -1,5 +1,5 @@
 import { MappingProperty } from "@elastic/elasticsearch/lib/api/types";
-import { client } from "./client";
+import { client } from "../client";
 import { JurisprudenciaDocumentDateKey, JurisprudenciaDocumentExactKey } from "@stjiris/jurisprudencia-document";
 import { notify } from "./notify";
 

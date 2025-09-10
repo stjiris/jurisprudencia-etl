@@ -1,8 +1,8 @@
-import { allLinks } from "./dgsi-links";
+import { allLinks } from "./crawler";
 import { JurisprudenciaVersion } from "@stjiris/jurisprudencia-document";
-import { indexJurisprudenciaDocumentFromURL, updateJurisprudenciaDocumentFromURL } from "./crud-jurisprudencia-document-from-url";
-import { client } from "./client";
-import { Report, report } from "./report";
+import { indexJurisprudenciaDocumentFromURL, updateJurisprudenciaDocumentFromURL } from "./parser";
+import { client } from "../client";
+import { Report, report } from "../communication/report";
 import { WriteResponseBase } from "@elastic/elasticsearch/lib/api/types";
 
 const FLAG_FULL_UPDATE = process.argv.some(arg => arg === "-f" || arg === "--full");

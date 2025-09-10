@@ -1,4 +1,4 @@
-import { JSDOMfromURL } from "./jsdom-util";
+import { JSDOMfromURL } from "../utils/aux";
 
 export const DGSI_MAIN_PAGE = "https://www.dgsi.pt/jstj.nsf?OpenDatabase"
 export const DGSI_LINK_PATT = /https?:\/\/www\.dgsi\.pt\/jstj\.nsf\/([^/]+)\/([^/]+)\?OpenDocument/;

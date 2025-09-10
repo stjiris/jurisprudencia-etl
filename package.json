@@ -2,19 +2,24 @@
   "name": "jurisprudencia-etl",
   "version": "0.0.0",
   "description": "",
-  "main": "index.js",
+  "main": "sharepoint/index.js",
   "scripts": {
     "build": "tsc",
     "dev": "tsc --watch",
-    "start": "node dist/index.js"
+    "clean": "rimraf dist",
+    "sharepoint": "node dist/sharepoint/index.js",
+    "dgsi": "node dist/dgsi/index.js"
   },
   "keywords": [],
   "author": "Diogo Almiro",
   "license": "ISC",
   "dependencies": {
+    "@azure/identity": "^4.12.0",
     "@elastic/elasticsearch": "^8.9.0",
+    "@microsoft/microsoft-graph-client": "^3.0.7",
     "@stjiris/jurisprudencia-document": "^11.1.4",
     "@types/nodemailer": "^6.4.13",
+    "dotenv": "^17.2.2",
     "express": "^4.18.2",
     "jsdom": "^22.1.0",
     "nodemailer": "^6.9.7"

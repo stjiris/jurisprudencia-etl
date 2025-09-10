@@ -1,4 +1,4 @@
-import { JSDOM } from "jsdom"
+import { JSDOM } from "jsdom";
 
 export async function JSDOMfromURL(url: string, retries: number = 10) {
     let start = Date.now();
@@ -15,4 +15,10 @@ export async function JSDOMfromURL(url: string, retries: number = 10) {
         }
     }
     throw new Error(`Failed to fetch ${url}`);
+}
+
+export function envOrFail(name: string) {
+    const value = process.env[name];
+    if (!value) throw new Error(`Missing environment variable ${name}`);
+    return value;
 }
