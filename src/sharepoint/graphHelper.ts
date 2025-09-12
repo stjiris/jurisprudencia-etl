@@ -32,13 +32,60 @@ export async function getAppOnlyTokenAsync(clientSecretCredential: ClientSecretC
   return response.token;
 }
 
-export async function listAllItems(client: Client, siteId: string, driveId: string = "", folderId: string = 'root') {
-  const res = await client.api(`/sites/${siteId}/drives/${driveId}/items/${folderId}/children`).get();
-  for (const item of res.value as DriveItem[]) {
-    console.log(item.name, item.folder ? "Folder" : "File");
+export type FileYield = {
+  item: DriveItem;
+  downloadUrl: string;
+};
 
-    if (item.folder) {
-      await listAllItems(client, siteId, driveId, item.id);
+export async function* allDriveFiles(
+  client: Client,
+  siteId: string | undefined,
+  driveId: string | undefined
+): AsyncGenerator<FileYield, void, unknown> {
+  if (!siteId) throw new Error('siteId required');
+  if (!driveId) throw new Error('driveId required');
+
+  const visited = new Set<string>();
+  const folderStack: string[] = ['root'];
+
+  async function* fetchChildren(folderId: string) {
+    let url = `/sites/${siteId}/drives/${driveId}/items/${folderId}/children`;
+    while (url) {
+      const res: any = await client.api(url).get();
+      const items = Array.isArray(res?.value) ? (res.value as DriveItem[]) : null;
+      if (!items) {
+        return [];
+      }
+      for (const it of items) {
+        yield it;
+      }
+      url = res['@odata.nextLink'] ?? null;
+    }
+  }
+
+  while (folderStack.length > 0) {
+    const folderId = folderStack.shift()!;
+
+    for await (const child of (async function* () { yield* fetchChildren(folderId); })()) {
+      const key = child.id ?? child.webUrl ?? `${driveId}:${folderId}:${child.name}`;
+
+      if (visited.has(key)) {
+        continue;
+      }
+      visited.add(key);
+
+      if (child.folder) {
+        if (child.id) folderStack.push(child.id);
+        continue;
+      }
+      const contentUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${child.id}/content`;
+      yield {
+        item: child,
+        downloadUrl: contentUrl,
+      };
     }
   }
 }
+
+
+
