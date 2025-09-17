@@ -3,7 +3,7 @@ import { JSDOMfromURL } from "../utils/aux";
 export const DGSI_MAIN_PAGE = "https://www.dgsi.pt/jstj.nsf?OpenDatabase"
 export const DGSI_LINK_PATT = /https?:\/\/www\.dgsi\.pt\/jstj\.nsf\/([^/]+)\/([^/]+)\?OpenDocument/;
 
-export async function* allLinks() {
+export async function* allLinks(): AsyncGenerator<string, void, unknown> {
     let visited: Record<string, true> = {}
     let currurl: string | undefined = DGSI_MAIN_PAGE;
     while (currurl !== undefined) {

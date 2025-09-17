@@ -5,36 +5,21 @@ import { TokenCredentialAuthenticationProvider } from
 import { envOrFail } from '../utils/aux';
 import { DriveItem } from '@microsoft/microsoft-graph-types';
 
-export async function initializeGraphForAppOnlyAuth(): Promise<{
-  client: Client;
-}> {
+export async function initializeGraphForAppOnlyAuth(): Promise<Client> {
   const tenantId = envOrFail('TENANT_ID');
   const clientId = envOrFail('CLIENT_ID');
   const clientSecret = envOrFail('CLIENT_SECRET');
 
   const credential = new ClientSecretCredential(tenantId, clientId, clientSecret);
-
-  const authProvider = new TokenCredentialAuthenticationProvider(credential, {
-    scopes: ['https://graph.microsoft.com/.default'],
-  });
-
-  const client = Client.initWithMiddleware({
-    authProvider,
-  });
-
-  return { client };
-}
-
-export async function getAppOnlyTokenAsync(clientSecretCredential: ClientSecretCredential): Promise<string> {
-  const response = await clientSecretCredential.getToken([
-    'https://graph.microsoft.com/.default',
-  ]);
-  return response.token;
+  const authProvider = new TokenCredentialAuthenticationProvider(credential, {scopes: ['https://graph.microsoft.com/.default']});
+  const client = Client.initWithMiddleware({ authProvider });
+  return client;
 }
 
 export type FileYield = {
   item: DriveItem;
-  downloadUrl: string;
+  downloadURL: string;
+  pathSegments: string[];
 };
 
 export async function* allDriveFiles(
@@ -46,15 +31,18 @@ export async function* allDriveFiles(
   if (!driveId) throw new Error('driveId required');
 
   const visited = new Set<string>();
-  const folderStack: string[] = ['root'];
 
-  async function* fetchChildren(folderId: string) {
+  const folderStack: Array<{ id: string; pathSegments: string[] }> = [
+    { id: 'root', pathSegments: [] },
+  ];
+
+  async function* fetchChildren(folderId: string): AsyncGenerator<DriveItem, void, unknown> {
     let url = `/sites/${siteId}/drives/${driveId}/items/${folderId}/children`;
     while (url) {
       const res: any = await client.api(url).get();
       const items = Array.isArray(res?.value) ? (res.value as DriveItem[]) : null;
       if (!items) {
-        return [];
+        return;
       }
       for (const it of items) {
         yield it;
@@ -63,25 +51,40 @@ export async function* allDriveFiles(
     }
   }
 
-  while (folderStack.length > 0) {
-    const folderId = folderStack.shift()!;
+  const isDocx = (item: DriveItem) => {
+    if (!item.name)
+      return false;
+    const extension = item.name.toLowerCase().endsWith('.docx');
+    const mimeCheck = item.file?.mimeType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    return extension && mimeCheck ;
+  };
 
-    for await (const child of (async function* () { yield* fetchChildren(folderId); })()) {
+  while (folderStack.length > 0) {
+    const { id: folderId, pathSegments } = folderStack.pop()!;
+
+    for await (const child of fetchChildren(folderId)) {
       const key = child.id ?? child.webUrl ?? `${driveId}:${folderId}:${child.name}`;
 
-      if (visited.has(key)) {
+      if (visited.has(key) && !isDocx(child)) {
         continue;
       }
       visited.add(key);
 
       if (child.folder) {
-        if (child.id) folderStack.push(child.id);
+        if (child.id) {
+          const folderName = child.name ?? '';
+          const childPath = [...pathSegments, folderName].filter(Boolean);
+          folderStack.push({ id: child.id, pathSegments: childPath });
+        }
         continue;
       }
+
       const contentUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${child.id}/content`;
+      
       yield {
         item: child,
-        downloadUrl: contentUrl,
+        downloadURL: contentUrl,
+        pathSegments: pathSegments
       };
     }
   }

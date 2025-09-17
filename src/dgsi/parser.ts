@@ -6,7 +6,7 @@ import { conflicts } from "../communication/report";
 import { DGSI_LINK_PATT } from "./crawler";
 import { JSDOMfromURL } from "../utils/aux"
 
-export async function jurisprudenciaOriginalFromURL(url: string) {
+export async function jurisprudenciaOriginalFromURL(url: string): Promise<Record<string, HTMLTableCellElement> | undefined> {
     if (url.match(DGSI_LINK_PATT)) {
         let page = await JSDOMfromURL(url);
         let tables = Array.from(page.window.document.querySelectorAll("table")).filter(o => !o.parentElement?.closest("table"));
@@ -19,10 +19,10 @@ export async function jurisprudenciaOriginalFromURL(url: string) {
                     acc[key] = value;
                 }
                 return acc;
-            }, {} as Record<string, HTMLTableCellElement | undefined>);
+            }, {} as Record<string, HTMLTableCellElement>);
     }
 
-    return null;
+    return;
 }
 
 function addGenericField(obj: PartialJurisprudenciaDocument, key: JurisprudenciaDocumentGenericKey, table: Record<string, HTMLTableCellElement | undefined>, tableKey: string) {
@@ -180,9 +180,10 @@ async function addSumarioAndTexto(obj: PartialJurisprudenciaDocument, table: Rec
     }
 }
 
-export async function createJurisprudenciaDocumentFromURL(url: string) {
+export async function createJurisprudenciaDocumentFromURL(url: string): Promise<Partial<JurisprudenciaDocument> | undefined> {
     let table = await jurisprudenciaOriginalFromURL(url);
-    if (!table) return;
+    if (!table)
+        return;
 
     let Original: JurisprudenciaDocument["Original"] = {};
     let CONTENT: JurisprudenciaDocument["CONTENT"] = [];

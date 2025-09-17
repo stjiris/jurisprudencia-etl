@@ -23,7 +23,7 @@ function showHelp(code: number, error?: string) {
     process.exit(code);
 }
 
-function indexedUrlId(url: string) {
+function indexedUrlId(url: string): Promise<string | null> {
     return client.search({
         index: JurisprudenciaVersion,
         query: {
