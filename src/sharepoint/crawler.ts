@@ -1,7 +1,6 @@
 import { ClientSecretCredential } from '@azure/identity';
 import { Client, PageCollection } from '@microsoft/microsoft-graph-client';
-import { TokenCredentialAuthenticationProvider } from
-  '@microsoft/microsoft-graph-client/authProviders/azureTokenCredentials';
+import { TokenCredentialAuthenticationProvider } from '@microsoft/microsoft-graph-client/authProviders/azureTokenCredentials';
 import { envOrFail } from '../utils/aux';
 import { DriveItem } from '@microsoft/microsoft-graph-types';
 
@@ -80,7 +79,7 @@ export async function* allDriveFiles(
       }
 
       const contentUrl = `https://graph.microsoft.com/v1.0/sites/${siteId}/drives/${driveId}/items/${child.id}/content`;
-      
+
       yield {
         item: child,
         downloadURL: contentUrl,

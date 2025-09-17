@@ -1,4 +1,3 @@
-import 'dotenv/config';
 import { initializeGraphForAppOnlyAuth, allDriveFiles, FileYield } from "./crawler";
 import { Drive, DriveItem } from '@microsoft/microsoft-graph-types';
 import { ResponseType } from '@microsoft/microsoft-graph-client';
@@ -80,44 +79,41 @@ async function main() {
     let i = 0;
     // get all files
     for await (const f of allDriveFiles(graphClient, site.id, drive.id)) {
-      let id = await indexedUrlId(f.downloadURL);
-      console.log("id: ", id);
-      i++;
-      if (id && !FLAG_FULL_UPDATE) {
-          info.skiped++;
-          continue;
-      };
-      console.log(f.item, f.pathSegments)
+        let id = await indexedUrlId(f.downloadURL);
+        i++;
+        if (id && !FLAG_FULL_UPDATE) {
+            info.skiped++;
+            continue;
+        };
 
-      let r: WriteResponseBase | undefined = undefined;
-      if (id) {
-          r = await updateJurisprudenciaDocumentFromSharepointFile(id, f, graphClient);
-      }
-      else {
-          r = await indexJurisprudenciaDocumentFromSharepointFile(f, graphClient);
-      }
-      switch (r?.result) {
-          case "created":
-              info.created++;
-              break;
-          case "deleted":
-              info.deleted++;
-              break;
-          case "updated":
-              info.updated++;
-              break;
-          case "noop":
-          case "not_found":
-          default:
-              info.skiped++;
-              break;
-      }
+        let r: WriteResponseBase | undefined = undefined;
+        if (id) {
+            r = await updateJurisprudenciaDocumentFromSharepointFile(id, f, graphClient);
+        }
+        else {
+            r = await indexJurisprudenciaDocumentFromSharepointFile(f, graphClient);
+        }
+        switch (r?.result) {
+            case "created":
+                info.created++;
+                break;
+            case "deleted":
+                info.deleted++;
+                break;
+            case "updated":
+                info.updated++;
+                break;
+            case "noop":
+            case "not_found":
+            default:
+                info.skiped++;
+                break;
+        }
     }
 
   }
   info.dateEnd = new Date()
-  await report(info)
-
+  //await report(info)
 }
 
 main().catch(e => console.error(e));
