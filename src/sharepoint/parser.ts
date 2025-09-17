@@ -11,7 +11,6 @@ export async function updateJurisprudenciaDocumentFromSharepointFile(id: string,
 
 export async function indexJurisprudenciaDocumentFromSharepointFile(file: FileYield, graphClient: Client): Promise<IndexResponse | undefined> {
     let obj = await createJurisprudenciaDocumentFromURL(file, graphClient);
-    console.log("Object: ", obj);
     if (obj) {
         return client.index({
             index: JurisprudenciaVersion,
@@ -45,7 +44,7 @@ export async function createJurisprudenciaDocumentFromURL(file:FileYield, graphC
   let numProc: JurisprudenciaDocument["Número de Processo"] = file.item.name;
   let DataAcordao: JurisprudenciaDocument["Data"] = null;
 
-  if (file.pathSegments.length !== 0) {
+  if (file.pathSegments.length >= 2) {
     DataAcordao = file.pathSegments[1];
     // transform date from DD-MM-YYYY to DD/MM/YYYY
     DataAcordao = DataAcordao.replace(/(\d{2})\-(\d{2})\-(\d{4})/, "$1/$2/$3");
@@ -97,6 +96,53 @@ export async function indexedUrlId(url: string): Promise<string | null> {
 }
 
 function addSeccaoAndArea(obj: Partial<JurisprudenciaDocument>, file: FileYield) {
+    const Secções = {
+        SECÇÃO_1: "1.ª Secção (Cível)",
+        SECÇÃO_2: "2.ª Secção (Cível)",
+        SECÇÃO_3: "3.ª Secção (Criminal)",
+        SECÇÃO_4: "4.ª Secção (Social)",
+        SECÇÃO_5: "5.ª Secção (Criminal)",
+        SECÇÃO_6: "6.ª Secção (Cível)",
+        SECÇÃO_7: "7.ª Secção (Cível)",
+        CONTENCIOSO: "Contencioso",
+        CONFLITOS: "Conflitos"
+    };
+    const Áreas = {
+        SECÇÃO_1: "Área Cível",
+        SECÇÃO_2: "Área Cível",
+        SECÇÃO_3: "Área Criminal",
+        SECÇÃO_4: "Área Social",
+        SECÇÃO_5: "Área Criminal",
+        SECÇÃO_6: "Área Cível",
+        SECÇÃO_7: "Área Cível",
+        CONTENCIOSO: "Contencioso",
+        CONFLITOS: "Conflitos"
+    }
+    if (file.pathSegments.length === 0) {
+        return;
+    }
+
+    const seg = (file.pathSegments[0] || '').trim();
+
+    const match = seg.match(/(\d)|CONTENCIOSO/i);
+    if (!match) return;
+
+    const digitOrText = match[0].toUpperCase();
+
+    if (digitOrText === "CONTENCIOSO" || digitOrText === "8") {
+        const sec = Secções.CONTENCIOSO;
+        const area = Áreas.CONTENCIOSO;
+        obj.Secção = { Index: [sec], Original: [sec], Show: [sec] };
+        obj.Área   = { Index: [area], Original: [area], Show: [area] };
+    } else {
+        const key = `SECÇÃO_${digitOrText}` as keyof typeof Secções;
+        const sec = Secções[key];
+        const area = Áreas[key];
+        if (sec && area) {
+            obj.Secção = { Index: [sec], Original: [sec], Show: [sec] };
+            obj.Área   = { Index: [area], Original: [area], Show: [area] };
+        }
+    }
 
 }
 
