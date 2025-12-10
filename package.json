@@ -5,10 +5,10 @@
   "main": "sharepoint/index.js",
   "scripts": {
     "build": "tsc",
-    "dev": "tsc --watch",
-    "clean": "rimraf dist",
-    "sharepoint": "node dist/sharepoint/index.js",
-    "dgsi": "node dist/dgsi/index.js"
+    "run_sharepoint": "node dist/index.js",
+    "start_sharepoint": "npm run build && npm run run_sharepoint",
+    "run_dgsi": "node dist/index.js",
+    "start_dgsi": "npm run build && npm run run_dgsi"
   },
   "keywords": [],
   "author": "Diogo Almiro",
@@ -16,6 +16,7 @@
   "dependencies": {
     "@azure/identity": "^4.12.0",
     "@elastic/elasticsearch": "^8.9.0",
+    "@microsoft/microsoft-graph-types": "^2.40.0",
     "@microsoft/microsoft-graph-client": "^3.0.7",
     "@stjiris/jurisprudencia-document": "^11.1.4",
     "@types/nodemailer": "^6.4.13",
