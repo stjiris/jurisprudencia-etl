@@ -62,34 +62,39 @@ async function main() {
     }
     let i = 0;
     for await (let l of allLinks()) {
-        let id = await indexedUrlId(l);
         i++;
-        if (id && !FLAG_FULL_UPDATE) {
-            info.skiped++;
-            continue;
-        };
-        let r: WriteResponseBase | undefined = undefined;
-        if (id) {
-            r = await updateJurisprudenciaDocumentFromURL(id, l);
-        }
-        else {
-            r = await indexJurisprudenciaDocumentFromURL(l);
-        }
-        switch (r?.result) {
-            case "created":
-                info.created++;
-                break;
-            case "deleted":
-                info.deleted++;
-                break;
-            case "updated":
-                info.updated++;
-                break;
-            case "noop":
-            case "not_found":
-            default:
+        try {
+            let id = await indexedUrlId(l);
+            if (id && !FLAG_FULL_UPDATE) {
                 info.skiped++;
-                break;
+                continue;
+            };
+            let r: WriteResponseBase | undefined = undefined;
+            if (id) {
+                r = await updateJurisprudenciaDocumentFromURL(id, l);
+            }
+            else {
+                r = await indexJurisprudenciaDocumentFromURL(l);
+            }
+            switch (r?.result) {
+                case "created":
+                    info.created++;
+                    break;
+                case "deleted":
+                    info.deleted++;
+                    break;
+                case "updated":
+                    info.updated++;
+                    break;
+                case "noop":
+                case "not_found":
+                default:
+                    info.skiped++;
+                    break;
+            }
+        } catch (e) {
+            console.error(`Failed to process ${l}:`, e);
+            info.skiped++;
         }
     }
 
