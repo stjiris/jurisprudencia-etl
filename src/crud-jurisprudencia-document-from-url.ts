@@ -300,14 +300,8 @@ export async function updateJurisprudenciaDocumentFromURL(id: string, url: strin
 
     for (let key of JurisprudenciaDocumentKeys) {
         if (isJurisprudenciaDocumentContentKey(key)) continue; // DONE ABOVE
-        if (isJurisprudenciaDocumentDateKey(key) && newObject[key] && newObject[key] !== currentObject[key]) {
-            if (!currentObject[key]) {
-                updateObject[key] = newObject[key];
-            }
-            else {
-                updateObject[key] = currentObject[key];
-                conflictsObj[key] = { Current: currentObject[key] || "", New: newObject[key] || "" };
-            }
+        if (isJurisprudenciaDocumentDateKey(key) && newObject[key]) {
+            updateObject[key] = newObject[key];
         }
         if (isJurisprudenciaDocumentExactKey(key) && newObject[key] && newObject[key] !== currentObject[key]) {
             if (!currentObject[key] || key === "UUID") {
@@ -319,7 +313,21 @@ export async function updateJurisprudenciaDocumentFromURL(id: string, url: strin
             }
         }
         if (isJurisprudenciaDocumentGenericKey(key)) {
-            updateObject[key] = { ...(currentObject[key] || { Index: [], Show: [] }), Original: newObject[key]?.Original || [] };
+            const curr = currentObject[key];
+            const arrEq = (a?: string[], b?: string[]) =>
+                a === b || (!!a && !!b && a.length === b.length && a.every((v, i) => v === b[i]));
+            // For Descritores, Index/Show are DescritorOficial(Original) at index time, not Original itself
+            const expectedFromOriginal = key === 'Descritores'
+                ? curr?.Original?.map(d => DescritorOficial[d])
+                : curr?.Original;
+            const isCurated = !arrEq(curr?.Index, expectedFromOriginal) || !arrEq(curr?.Show, expectedFromOriginal);
+            if (isCurated) {
+                // Index/Show were manually changed — preserve them, only update Original
+                updateObject[key] = { ...(curr || { Index: [], Show: [] }), Original: newObject[key]?.Original || [] };
+            } else {
+                // Never curated — take everything from DGSI (Index, Show, Original)
+                updateObject[key] = newObject[key] || { Index: [], Original: [], Show: [] };
+            }
         }
         if (isJurisprudenciaDocumentHashKey(key)) continue; // DONE BELOW
         if (isJurisprudenciaDocumentObjectKey(key)) {
