@@ -316,17 +316,19 @@ export async function updateJurisprudenciaDocumentFromURL(id: string, url: strin
             const curr = currentObject[key];
             const arrEq = (a?: string[], b?: string[]) =>
                 a === b || (!!a && !!b && a.length === b.length && a.every((v, i) => v === b[i]));
-            // For Descritores, Index/Show are DescritorOficial(Original) at index time, not Original itself
-            const expectedFromOriginal = key === 'Descritores'
-                ? curr?.Original?.map(d => DescritorOficial[d])
-                : curr?.Original;
-            const isCurated = !arrEq(curr?.Index, expectedFromOriginal) || !arrEq(curr?.Show, expectedFromOriginal);
-            if (isCurated) {
-                // Index/Show were manually changed — preserve them, only update Original
-                updateObject[key] = { ...(curr || { Index: [], Show: [] }), Original: newObject[key]?.Original || [] };
-            } else {
-                // Never curated — take everything from DGSI (Index, Show, Original)
+            if (key === 'Descritores') {
+                // Descritores Index/Show are always derived from DGSI via DescritorOficial —
+                // always update so DGSI descriptor changes (including unmapped ones) propagate
                 updateObject[key] = newObject[key] || { Index: [], Original: [], Show: [] };
+            } else {
+                // For other generic fields: if Index/Show still match Original, never manually
+                // curated in juris — take everything from DGSI. Otherwise preserve curation.
+                const isCurated = !arrEq(curr?.Index, curr?.Original) || !arrEq(curr?.Show, curr?.Original);
+                if (isCurated) {
+                    updateObject[key] = { ...(curr || { Index: [], Show: [] }), Original: newObject[key]?.Original || [] };
+                } else {
+                    updateObject[key] = newObject[key] || { Index: [], Original: [], Show: [] };
+                }
             }
         }
         if (isJurisprudenciaDocumentHashKey(key)) continue; // DONE BELOW
