@@ -214,7 +214,7 @@ export async function createJurisprudenciaDocumentFromURL(url: string) {
                 Tipo = decSuma ? "Decisão Sumária" : decSing ? "Decisão Singular" : reclama ? "Reclamação" : "Acórdão";
                 DataToUse = text;
             }
-            if (!otherTipo) {
+            if (!otherTipo && (key.match(/^Data do Acord[ãa]o$/i) || !DataAcordao)) {
                 DataAcordao = text;
             }
         }
