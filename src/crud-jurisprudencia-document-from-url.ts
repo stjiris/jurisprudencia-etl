@@ -1,4 +1,4 @@
-import { calculateUUID, HASHField, JurisprudenciaDocument, JurisprudenciaDocumentDateKey, JurisprudenciaDocumentGenericKey, JurisprudenciaDocumentKey, JurisprudenciaDocumentKeys, JurisprudenciaVersion, PartialJurisprudenciaDocument, isJurisprudenciaDocumentContentKey, isJurisprudenciaDocumentDateKey, isJurisprudenciaDocumentExactKey, isJurisprudenciaDocumentGenericKey, isJurisprudenciaDocumentHashKey, isJurisprudenciaDocumentObjectKey, isJurisprudenciaDocumentStateKey, isJurisprudenciaDocumentTextKey, JurisprudenciaDocumentProperties, JurisprudenciaDocumentExactKey, calculateHASH } from "@stjiris/jurisprudencia-document";
+import { calculateUUID, HASHField, JurisprudenciaDocument, JurisprudenciaDocumentDateKey, JurisprudenciaDocumentGenericKey, JurisprudenciaDocumentKey, JurisprudenciaDocumentKeys, JurisprudenciaVersion, PartialJurisprudenciaDocument, isJurisprudenciaDocumentContentKey, isJurisprudenciaDocumentDateKey, isJurisprudenciaDocumentExactKey, isJurisprudenciaDocumentGenericKey, isJurisprudenciaDocumentHashKey, isJurisprudenciaDocumentObjectKey, isJurisprudenciaDocumentStateKey, isJurisprudenciaDocumentTextKey, JurisprudenciaDocumentProperties, JurisprudenciaDocumentExactKey, calculateHASH, isControlledField, matchCanonical, parseVotacao } from "@stjiris/jurisprudencia-document";
 import { JSDOM } from "jsdom";
 import { client } from "./client";
 import { createHash } from "crypto";
@@ -30,10 +30,19 @@ export async function jurisprudenciaOriginalFromURL(url: string) {
 function addGenericField(obj: PartialJurisprudenciaDocument, key: JurisprudenciaDocumentGenericKey, table: Record<string, HTMLTableCellElement | undefined>, tableKey: string) {
     let val = table[tableKey]?.textContent?.trim().split("\n");
     if (val) {
-        obj[key] = {
-            Index: val,
-            Original: val,
-            Show: val,
+        if (isControlledField(key)) {
+            let indexed = val.map(v => matchCanonical(key, v).value);
+            obj[key] = {
+                Index: indexed,
+                Original: val,
+                Show: indexed,
+            }
+        } else {
+            obj[key] = {
+                Index: val,
+                Original: val,
+                Show: val,
+            }
         }
     }
 }
@@ -58,10 +67,11 @@ function addMeioProcessual(obj: PartialJurisprudenciaDocument, table: Record<str
     if (table["Meio Processual"]) {
         let meios = table["Meio Processual"].textContent?.trim().split(/(\/|-|\n)/).map(meio => meio.trim().replace(/\.$/, ''));
         if (meios && meios.length > 0) {
+            let indexed = meios.map(meio => matchCanonical("Meio Processual", meio).value);
             obj["Meio Processual"] = {
-                Index: meios,
+                Index: indexed,
                 Original: meios,
-                Show: meios
+                Show: indexed
             }
         }
     }
@@ -72,11 +82,12 @@ function addVotacao(obj: PartialJurisprudenciaDocument, table: Record<string, HT
         let text = table.Votação.textContent?.trim();
         if (text) {
             if (text.match(/^-+$/)) return;
-            if (text.match(/unanimidade/i)) {
+            const parsed = parseVotacao(text);
+            if (parsed.matched) {
                 obj["Votação"] = {
-                    Index: ["Unanimidade"],
-                    Original: ["Unanimidade"],
-                    Show: ["Unanimidade"]
+                    Index: [parsed.category],
+                    Original: [text],
+                    Show: [parsed.show]
                 }
             }
             else {
@@ -259,11 +270,14 @@ export async function createJurisprudenciaDocumentFromURL(url: string) {
     await addSumarioAndTexto(obj, table)
 
     obj["HASH"] = calculateHASH({
-        ...obj,
         Original: obj.Original,
         "Número de Processo": obj["Número de Processo"] || "",
+        Data: obj.Data || "",
+        "Meio Processual": obj["Meio Processual"] || null,
         Sumário: obj.Sumário || "",
         Texto: obj.Texto || "",
+        "Sumário Não Anonimizado": obj["Sumário Não Anonimizado"] || "",
+        "Texto Não Anonimizado": obj["Texto Não Anonimizado"] || "",
     })
 
     obj["UUID"] = calculateUUID(obj["HASH"])
@@ -287,6 +301,8 @@ export async function updateJurisprudenciaDocumentFromURL(id: string, url: strin
     let updateObject: PartialJurisprudenciaDocument = {};
     const needsUpdate = newObject.HASH?.Original !== currentObject.HASH?.Original ||
         newObject.HASH?.Processo !== currentObject.HASH?.Processo ||
+        newObject.HASH?.Data !== currentObject.HASH?.Data ||
+        newObject.HASH?.["Meio Processual"] !== currentObject.HASH?.["Meio Processual"] ||
         newObject.HASH?.Sumário !== currentObject.HASH?.Sumário ||
         newObject.HASH?.Texto !== currentObject.HASH?.Texto ||
         newObject.UUID !== currentObject.UUID;
@@ -341,11 +357,18 @@ export async function updateJurisprudenciaDocumentFromURL(id: string, url: strin
         if (isJurisprudenciaDocumentStateKey(key)) continue;
     }
 
+    // HASH must reflect the document as it will be after the partial update is
+    // merged over the current document, so fall back to current values for any
+    // field the update does not set.
     updateObject["HASH"] = calculateHASH({
-        Original: updateObject.Original,
-        "Número de Processo": updateObject["Número de Processo"] || "",
-        Sumário: updateObject.Sumário || "",
-        Texto: updateObject.Texto || ""
+        Original: updateObject.Original ?? currentObject.Original,
+        "Número de Processo": updateObject["Número de Processo"] ?? currentObject["Número de Processo"] ?? "",
+        Data: updateObject.Data ?? currentObject.Data ?? "",
+        "Meio Processual": updateObject["Meio Processual"] ?? currentObject["Meio Processual"] ?? null,
+        Sumário: updateObject.Sumário ?? currentObject.Sumário ?? "",
+        Texto: updateObject.Texto ?? currentObject.Texto ?? "",
+        "Sumário Não Anonimizado": updateObject["Sumário Não Anonimizado"] ?? currentObject["Sumário Não Anonimizado"] ?? "",
+        "Texto Não Anonimizado": updateObject["Texto Não Anonimizado"] ?? currentObject["Texto Não Anonimizado"] ?? "",
     });
 
     updateObject["UUID"] = calculateUUID(updateObject["HASH"])
