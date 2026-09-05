@@ -1,9 +1,17 @@
-import { calculateUUID, HASHField, JurisprudenciaDocument, JurisprudenciaDocumentDateKey, JurisprudenciaDocumentGenericKey, JurisprudenciaDocumentKey, JurisprudenciaDocumentKeys, JurisprudenciaVersion, PartialJurisprudenciaDocument, isJurisprudenciaDocumentContentKey, isJurisprudenciaDocumentDateKey, isJurisprudenciaDocumentExactKey, isJurisprudenciaDocumentGenericKey, isJurisprudenciaDocumentHashKey, isJurisprudenciaDocumentObjectKey, isJurisprudenciaDocumentStateKey, isJurisprudenciaDocumentTextKey, JurisprudenciaDocumentProperties, JurisprudenciaDocumentExactKey, calculateHASH, isControlledField, matchCanonical, parseVotacao } from "@stjiris/jurisprudencia-document";
+import { calculateUUID, HASHField, JurisprudenciaDocument, JurisprudenciaDocumentDateKey, JurisprudenciaDocumentGenericKey, JurisprudenciaDocumentKey, JurisprudenciaDocumentKeys, JurisprudenciaVersion, PartialJurisprudenciaDocument, isJurisprudenciaDocumentContentKey, isJurisprudenciaDocumentDateKey, isJurisprudenciaDocumentExactKey, isJurisprudenciaDocumentGenericKey, isJurisprudenciaDocumentHashKey, isJurisprudenciaDocumentObjectKey, isJurisprudenciaDocumentStateKey, isJurisprudenciaDocumentTextKey, JurisprudenciaDocumentProperties, JurisprudenciaDocumentExactKey, calculateHASH, isControlledField, matchCanonical, parseVotacao, ControlledField } from "@stjiris/jurisprudencia-document";
 import { JSDOM } from "jsdom";
 import { client } from "./client";
 import { createHash } from "crypto";
 import { DescritorOficial } from "./descritor-oficial";
 import { IndexResponse, UpdateResponse, WriteResponseBase } from "@elastic/elasticsearch/lib/api/types";
+
+// no match -> use the field's catch-all instead of keeping the raw value (the raw stays in Original)
+const CONTROLLED_FALLBACK: Partial<Record<ControlledField, string>> = {
+    "Decisão": "Sem informação",
+    "Meio Processual": "Outro",
+    "Relator Nome Profissional": "Sem informação",
+    "Votação": "Sem informação",
+};
 import { conflicts } from "./report";
 import { JSDOMfromURL } from "./jsdom-util";
 import { DGSI_LINK_PATT } from "./dgsi-links";
@@ -31,7 +39,10 @@ function addGenericField(obj: PartialJurisprudenciaDocument, key: Jurisprudencia
     let val = table[tableKey]?.textContent?.trim().split("\n");
     if (val) {
         if (isControlledField(key)) {
-            let indexed = val.map(v => matchCanonical(key, v).value);
+            let indexed = val.map(v => {
+                let m = matchCanonical(key, v);
+                return m.matched ? m.value : (CONTROLLED_FALLBACK[key] ?? m.value);
+            });
             obj[key] = {
                 Index: indexed,
                 Original: val,
@@ -67,7 +78,10 @@ function addMeioProcessual(obj: PartialJurisprudenciaDocument, table: Record<str
     if (table["Meio Processual"]) {
         let meios = table["Meio Processual"].textContent?.trim().split(/(\/|-|\n)/).map(meio => meio.trim().replace(/\.$/, ''));
         if (meios && meios.length > 0) {
-            let indexed = meios.map(meio => matchCanonical("Meio Processual", meio).value);
+            let indexed = meios.map(meio => {
+                let m = matchCanonical("Meio Processual", meio);
+                return m.matched ? m.value : "Outro";
+            });
             obj["Meio Processual"] = {
                 Index: indexed,
                 Original: meios,
@@ -92,9 +106,9 @@ function addVotacao(obj: PartialJurisprudenciaDocument, table: Record<string, HT
             }
             else {
                 obj["Votação"] = {
-                    Index: [text],
+                    Index: ["Sem informação"],
                     Original: [text],
-                    Show: [text]
+                    Show: ["Sem informação"]
                 }
             }
         }
