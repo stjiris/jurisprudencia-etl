@@ -284,8 +284,8 @@ export async function createJurisprudenciaDocumentFromURL(url: string) {
     return obj;
 }
 
-export async function indexJurisprudenciaDocumentFromURL(url: string): Promise<IndexResponse | undefined> {
-    let obj = await createJurisprudenciaDocumentFromURL(url);
+export async function indexJurisprudenciaDocumentFromURL(url: string, prebuilt?: PartialJurisprudenciaDocument): Promise<IndexResponse | undefined> {
+    let obj = prebuilt ?? await createJurisprudenciaDocumentFromURL(url);
     if (obj) {
         return client.index({
             index: JurisprudenciaVersion,
@@ -294,8 +294,9 @@ export async function indexJurisprudenciaDocumentFromURL(url: string): Promise<I
     }
 }
 
-export async function updateJurisprudenciaDocumentFromURL(id: string, url: string): Promise<UpdateResponse | undefined> {
-    let newObject = await createJurisprudenciaDocumentFromURL(url);
+// adopt = this doc was the sharepoint one (found by uuid), so let dgsi take over the url and fonte
+export async function updateJurisprudenciaDocumentFromURL(id: string, url: string, opts?: { prebuilt?: PartialJurisprudenciaDocument; adopt?: boolean }): Promise<UpdateResponse | undefined> {
+    let newObject = opts?.prebuilt ?? await createJurisprudenciaDocumentFromURL(url);
     if (!newObject) return;
     let currentObject = (await client.get<JurisprudenciaDocument>({ index: JurisprudenciaVersion, id: id, _source: true }))._source!;
     let updateObject: PartialJurisprudenciaDocument = {};
@@ -307,7 +308,7 @@ export async function updateJurisprudenciaDocumentFromURL(id: string, url: strin
         newObject.HASH?.Texto !== currentObject.HASH?.Texto ||
         newObject.UUID !== currentObject.UUID;
 
-    if (!needsUpdate) { return; }
+    if (!needsUpdate && !opts?.adopt) { return; }
     // Concat only new values to CONTENT without duplicates
     let CONTENT = newObject.CONTENT?.filter(o => !currentObject.CONTENT?.includes(o)) || [];
     updateObject.CONTENT = currentObject.CONTENT?.concat(CONTENT);
@@ -320,7 +321,7 @@ export async function updateJurisprudenciaDocumentFromURL(id: string, url: strin
             updateObject[key] = newObject[key];
         }
         if (isJurisprudenciaDocumentExactKey(key) && newObject[key] && newObject[key] !== currentObject[key]) {
-            if (!currentObject[key] || key === "UUID") {
+            if (!currentObject[key] || key === "UUID" || (opts?.adopt && (key === "URL" || key === "Fonte"))) {
                 updateObject[key] = newObject[key];
             }
             else {

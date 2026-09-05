@@ -1,6 +1,6 @@
 import { allLinks } from "./dgsi-links";
 import { JurisprudenciaVersion } from "@stjiris/jurisprudencia-document";
-import { indexJurisprudenciaDocumentFromURL, updateJurisprudenciaDocumentFromURL } from "./crud-jurisprudencia-document-from-url";
+import { createJurisprudenciaDocumentFromURL, indexJurisprudenciaDocumentFromURL, updateJurisprudenciaDocumentFromURL } from "./crud-jurisprudencia-document-from-url";
 import { client } from "./client";
 import { Report, report } from "./report";
 import { WriteResponseBase } from "@elastic/elasticsearch/lib/api/types";
@@ -29,6 +29,20 @@ function indexedUrlId(url: string) {
         query: {
             term: {
                 "URL": url
+            }
+        },
+        _source: false,
+        size: 1
+    }).then(r => r.hits.hits[0] ? r.hits.hits[0]._id : null)
+}
+
+// same as above but by uuid, so we dont end up with sharepoint duplicates
+function indexedUuidId(uuid: string) {
+    return client.search({
+        index: JurisprudenciaVersion,
+        query: {
+            term: {
+                "UUID": uuid
             }
         },
         _source: false,
@@ -71,10 +85,23 @@ async function main() {
             };
             let r: WriteResponseBase | undefined = undefined;
             if (id) {
+                // Existing DGSI document (matched by URL) — normal update.
                 r = await updateJurisprudenciaDocumentFromURL(id, l);
             }
             else {
-                r = await indexJurisprudenciaDocumentFromURL(l);
+                // no url match, maybe it came from sharepoint - check the uuid and take it over if so
+                let obj = await createJurisprudenciaDocumentFromURL(l);
+                if (!obj) {
+                    info.skiped++;
+                    continue;
+                }
+                let uuidId = obj.UUID ? await indexedUuidId(obj.UUID) : null;
+                if (uuidId) {
+                    r = await updateJurisprudenciaDocumentFromURL(uuidId, l, { prebuilt: obj, adopt: true });
+                }
+                else {
+                    r = await indexJurisprudenciaDocumentFromURL(l, obj);
+                }
             }
             switch (r?.result) {
                 case "created":
